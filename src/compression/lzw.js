@@ -1,7 +1,4 @@
-"use strict";
-
-//var lzwCompress = require("lzwcompress");
-var AbstractDecoder = require("../abstractdecoder.js");
+import AbstractDecoder from '../abstractdecoder';
 
 var MIN_BITS = 9;
 var MAX_BITS = 12;
@@ -128,12 +125,16 @@ function decompress(input) {
   return new Uint8Array(result);
 }
 
-function LZWDecoder() {}
+
+export default class LZWDecoder extends AbstractDecoder {
+  decodeBlock (buffer) {
+    return Promise.resolve(decompress(buffer, false).buffer);
+  }
+}
+/*function LZWDecoder() {}
 
 LZWDecoder.prototype = Object.create(AbstractDecoder.prototype);
 LZWDecoder.prototype.constructor = LZWDecoder;
 LZWDecoder.prototype.decodeBlock = function(buffer) {
   return decompress(buffer, false).buffer;
-};
-
-module.exports = LZWDecoder;
+};*/

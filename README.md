@@ -26,6 +26,8 @@ Currently available functionality:
   * Subsetting via an image window and selected bands
   * Reading of samples into separate arrays or a single pixel-interleaved array
   * Configurable tile/strip cache
+  * Configurable Pool of workers to increase decoding efficiency
+  * Utility functions for geospatial parameters (Bounding Box, Origin, Resolution)
   * Limited [bigTIFF](http://bigtiff.org/#FILE_FORMAT) support
   * Automated testing via PhantomJS
 
@@ -41,7 +43,6 @@ git clone https://github.com/constantinius/geotiff.js.git
 cd geotiff.js/
 
 # install development dependencies
-npm install -g grunt-cli
 npm install
 ```
 
@@ -57,13 +58,13 @@ cd -
 To test the library (using PhantomJS, karma, mocha and chai) do the following:
 
 ```bash
-npm test
+npm run test
 ```
 
 To do some in-browser testing do:
 
 ```bash
-npm start
+npm run dev
 ```
 
 and navigate to `http://localhost:9000/test/`
@@ -143,15 +144,24 @@ region:
 ```javascript
 var rasterWindow = [50, 50, 100, 100]; // left, top, right, bottom
 var samples = [0, 1, 2, 3];
-var rasters = image.readRasters({window: rasterWindow, samples: samples});
-for (var i = 0; i < rasters.length; ++i) {
-  console.log(rasters[i]);
-}
+image.readRasters({window: rasterWindow, samples: samples})
+  .then(function(rasters) {
+    for (var i = 0; i < rasters.length; ++i) {
+      console.log(rasters[i]);
+    }
+  });
+
 // to read all samples with no subsets:
-rasters = image.readRasters();
+image.readRasters()
+  .then(function(rasters) {
+    // ...
+  });
 
 // to read the data in a single interleaved array:
-var array = image.readRasters({interleave: true});
+image.readRasters({interleave: true})
+  .then(function(raster) {
+    // ...
+  });
 ```
 
 To read TIFF or geo-spatial metadata, the methods `.getFileDirectory()` and
@@ -173,14 +183,16 @@ on the fly rendering of the data contained in a GeoTIFF.
   // ...
   var tiff = GeoTIFF.parse(data);
   var image = tiff.getImage();
-  var rasters = image.readRasters();
-  var canvas = document.getElementById("plot");
-  var plot = new plotty.plot({
-    canvas: canvas, data: rasters[0],
-    width: image.getWidth(), height: image.getHeight(),
-    domain: [0, 256], colorScale: "viridis"
-  });
-  plot.render();
+  image.readRasters()
+    .then(function(rasters) {
+      var canvas = document.getElementById("plot");
+      var plot = new plotty.plot({
+        canvas: canvas, data: rasters[0],
+        width: image.getWidth(), height: image.getHeight(),
+        domain: [0, 256], colorScale: "viridis"
+      });
+      plot.render();
+    });
 </script>
 ```
 
@@ -197,23 +209,24 @@ The following example shows how to display such data in a browsers canvas:
 
     var parser = GeoTIFF.parse(data);
     var image = parser.getImage();
-    image.readRGB(function(raster) {
-      var canvas = document.getElementById('canvas');
-      canvas.width = image.getWidth();
-      canvas.height = image.getHeight();
-      var ctx = canvas.getContext("2d");
-      var imageData = ctx.createImageData(image.getWidth(), image.getHeight());
-      var data = imageData.data;
-      var o = 0;
-      for (var i = 0; i < raster.length; i+=3) {
-        data[o] = raster[i];
-        data[o+1] = raster[i+1];
-        data[o+2] = raster[i+2];
-        data[o+3] = 255;
-        o += 4;
-      }
-      ctx.putImageData(imageData, 0, 0);
-    });
+    image.readRGB()
+      .then(function(raster) {
+        var canvas = document.getElementById('canvas');
+        canvas.width = image.getWidth();
+        canvas.height = image.getHeight();
+        var ctx = canvas.getContext("2d");
+        var imageData = ctx.createImageData(image.getWidth(), image.getHeight());
+        var data = imageData.data;
+        var o = 0;
+        for (var i = 0; i < raster.length; i+=3) {
+          data[o] = raster[i];
+          data[o+1] = raster[i+1];
+          data[o+2] = raster[i+2];
+          data[o+3] = 255;
+          o += 4;
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }));
 
 
 ## BigTIFF support
@@ -240,13 +253,6 @@ a reasonable support, the following is implemented:
     * Specifying of window in CRS coordinates
   * Improving support of CIEL*a*b* images
   * Support of "overview images" (i.e: images with reduced resolution)
-
-## Contribution
-
-If you have an idea, found a bug or have a remark, please open a ticket, we will
-look into it ASAP.
-
-Pull requests are welcome as well!
 
 ## Acknowledgements
 
